@@ -103,6 +103,13 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// 随机延迟（模拟真人行为）
+function randomDelay(minMs, maxMs) {
+    const randomMs = Math.floor(Math.random() * (maxMs - minMs + 1)) + minMs;
+    log(`等待 ${(randomMs / 1000).toFixed(1)} 秒...`, 'info');
+    return delay(randomMs);
+}
+
 // 生成随机 10 个数字（0-15，即 0-f）
 function generateRandom10Picks() {
     const allNumbers = Array.from({ length: 16 }, (_, i) => i);
@@ -365,38 +372,46 @@ async function mainLoop() {
         try {
             const balance = await getBalance();
 
-            // 余额不足时停止
-            if (balance < 10) { // 需要至少 10 USDC（5 × 2）
-                log(`余额不足 (${balance.toFixed(2)} USDC)，停止下注`, 'warning');
-                break;
+            // 余额不足时等待后继续检查（不退出循环）
+            if (balance < 10) {
+                log(`余额不足 (${balance.toFixed(2)} USDC)，等待后重试...`, 'warning');
+                await randomDelay(60000, 120000);
+                continue;
             }
 
+            // 1. 查找当前区块并下注
+            log('>>> 开始新一轮 <<<', 'info');
             const success = await placeBet();
             if (success) {
                 betCount++;
                 log(`=== 第 ${betCount} 次下注完成 ===`, 'success');
             }
+
+            // 2. 随机等待（模拟真人）
+            await randomDelay(5000, 15000);
+
+            // 3. 等待开奖时间后尝试 Claim
+            log(`等待 ${CONFIG.CLAIM_INTERVAL / 1000} 秒后尝试领取奖励...`, 'info');
+            await delay(CONFIG.CLAIM_INTERVAL);
+
+            // 4. 尝试 Claim
+            try {
+                await checkAndClaim();
+            } catch (error) {
+                log(`Claim 错误: ${error.message}`, 'error');
+            }
+
+            // 5. 随机间隔后查找下一个区块，进入下一轮下注
+            log('准备查找下一个区块，进入下一轮下注...', 'info');
+            await randomDelay(3000, 10000);
+
         } catch (error) {
             log(`主循环错误: ${error.message}`, 'error');
+            await randomDelay(10000, 30000);
         }
-
-        // 短暂等待后继续下注（2秒）
-        await delay(2000);
     }
 
     log(`总共完成 ${betCount} 次下注`, 'info');
-}
-
-async function claimLoop() {
-    while (isRunning) {
-        await delay(CONFIG.CLAIM_INTERVAL);
-
-        try {
-            await checkAndClaim();
-        } catch (error) {
-            log(`Claim 循环错误: ${error.message}`, 'error');
-        }
-    }
 }
 
 async function start() {
@@ -422,11 +437,8 @@ async function start() {
     log(`检查间隔: ${CONFIG.CHECK_INTERVAL / 1000}秒, Claim 间隔: ${CONFIG.CLAIM_INTERVAL / 1000}秒`, 'info');
     log('='.repeat(50), 'info');
 
-    // 启动主循环
+    // 启动主循环（包含下注 → 等待 → claim → 下一轮）
     mainLoop();
-
-    // 启动 Claim 循环
-    claimLoop();
 
     // 处理退出信号
     process.on('SIGINT', () => {
