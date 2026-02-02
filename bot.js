@@ -254,9 +254,9 @@ async function placeBet() {
         const picks1 = ethers.getBytes(picks1Hex);
         const picks2 = ethers.getBytes(picks2Hex);
 
-        // 倍数（参考成功交易使用 3 和 2）
-        const multiplier1 = 3n;
-        const multiplier2 = 2n;
+        // 倍数（随机 3-10 之间的整数）
+        const multiplier1 = BigInt(Math.floor(Math.random() * 8) + 3);
+        const multiplier2 = BigInt(Math.floor(Math.random() * 8) + 3);
 
         // 设置交易截止时间（当前时间 + 5 分钟）
         const deadline = BigInt(Math.floor(Date.now() / 1000) + CONFIG.TX_DEADLINE);
