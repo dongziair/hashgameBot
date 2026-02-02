@@ -389,8 +389,8 @@ async function mainLoop() {
             log(`主循环错误: ${error.message}`, 'error');
         }
 
-        // 随机间隔 5-30 秒，模拟真人行为
-        await randomDelay(5000, 30000);
+        // 随机间隔 5-15 秒，模拟真人行为
+        await randomDelay(5000, 15000);
     }
 
     log(`总共完成 ${betCount} 次下注`, 'info');
